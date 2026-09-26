@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/floatingRoot"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <!-- 1. EXPANDED HUD CAPSULE (Default) -->
+    <LinearLayout
+        android:id="@+id/layoutExpanded"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_hud_capsule"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="visible">
+
+        <!-- Status Dot -->
+        <View
+            android:id="@+id/viewStatusDot"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/bg_status_dot" />
+
+        <!-- Waveform Visual -->
+        <ImageView
+            android:id="@+id/imgWaveform"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="8dp"
+            android:contentDescription="Waveform"
+            android:src="@drawable/ic_waveform" />
+
+        <!-- Play / Pause Button -->
+        <ImageButton
+            android:id="@+id/btnToggleAutoScroll"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="Pause or Resume Auto Scroll"
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_pause" />
+
+        <!-- Skip Next Button -->
+        <ImageButton
+            android:id="@+id/btnSkipNext"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_marginStart="4dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="Skip to next video"
+            android:padding="6dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_skip_next" />
+
+        <!-- Vertical Divider -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="16dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:background="@color/card_border_highlight" />
+
+        <!-- Collapse / Minimize Button -->
+        <ImageButton
+            android:id="@+id/btnMinimizeWidget"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="Minimize to bubble"
+            android:padding="5dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_close" />
+    </LinearLayout>
+
+    <!-- 2. COLLAPSED FLOATING BUBBLE (When minimized) -->
+    <FrameLayout
+        android:id="@+id/layoutCollapsed"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="@drawable/bg_hud_bubble"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/viewBubbleDot"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_status_dot" />
+    </FrameLayout>
+
+</FrameLayout>

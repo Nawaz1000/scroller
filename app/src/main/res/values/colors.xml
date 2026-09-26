@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark & Cyber Neon Color Palette -->
+    <color name="bg_dark">#0B0D12</color>
+    <color name="background">#0B0D12</color>
+    <color name="card_bg">#13161F</color>
+    <color name="card_bg_secondary">#1A1E29</color>
+    <color name="card_border">#232838</color>
+    <color name="card_border_highlight">#2F364A</color>
+
+    <color name="neon_green">#00F59B</color>
+    <color name="status_green">#00F59B</color>
+    <color name="primary">#00F59B</color>
+    <color name="neon_green_alpha20">#3300F59B</color>
+    <color name="neon_cyan">#00D2FF</color>
+    <color name="secondary">#00D2FF</color>
+    <color name="neon_cyan_alpha20">#3300D2FF</color>
+    <color name="neon_amber">#FFB300</color>
+    <color name="status_orange">#FFB300</color>
+    <color name="neon_red">#FF4D4D</color>
+    <color name="status_red">#FF4D4D</color>
+    <color name="status_blue">#00D2FF</color>
+
+    <!-- Social Platform Colors -->
+    <color name="yt_red">#FF0000</color>
+    <color name="ig_gradient_start">#FD1D1D</color>
+    <color name="ig_gradient_end">#833AB4</color>
+    <color name="fb_blue">#1877F2</color>
+    <color name="tiktok_cyan">#25F4EE</color>
+    <color name="tiktok_pink">#FE2C55</color>
+
+    <!-- Typography -->
+    <color name="text_primary">#F0F3FA</color>
+    <color name="on_surface">#F0F3FA</color>
+    <color name="text_secondary">#8C95AA</color>
+    <color name="text_muted">#555D71</color>
+
+    <!-- Floating Pill HUD -->
+    <color name="hud_bg">#EB131620</color>
+    <color name="floating_pill_bg">#EB131620</color>
+    <color name="hud_border">#00F59B</color>
+    <color name="floating_pill_border">#00F59B</color>
+</resources>

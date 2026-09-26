@@ -1,0 +1,46 @@
+<resources>
+    <string name="app_name">ReelFlow</string>
+    <string name="accessibility_service_label">ReelFlow Engine</string>
+    <string name="accessibility_service_description">Detects video playback completion on YouTube Shorts, Instagram Reels, and Facebook Reels, and performs automatic gesture scrolling.</string>
+
+    <!-- Pulse Engine -->
+    <string name="pulse_engine_title">The Pulse Engine</string>
+    <string name="pulse_engine_subtitle_active">AUTOSCROLL ENGINE ACTIVE</string>
+    <string name="pulse_engine_subtitle_inactive">AUTOSCROLL ENGINE PAUSED</string>
+    <string name="pulse_engine_desc">Monitoring YouTube &amp; Instagram in background</string>
+    <string name="badge_online">ONLINE</string>
+    <string name="badge_paused">PAUSED</string>
+
+    <!-- Floating Quick Launcher -->
+    <string name="floating_launcher_title">Floating Overlay Quick-Launcher</string>
+    <string name="btn_launch_floating">Launch Floating Pill</string>
+    <string name="btn_hide_floating">Hide Floating Pill</string>
+
+    <!-- Permissions -->
+    <string name="section_permissions">Permissions &amp; Readiness</string>
+    <string name="perm_accessibility_name">Accessibility Engine</string>
+    <string name="perm_accessibility_subtitle">Detect video completion and perform gestures</string>
+    <string name="perm_overlay_name">Overlay Controller</string>
+    <string name="perm_overlay_subtitle">Display over other apps</string>
+    <string name="perm_battery_name">Battery Optimization</string>
+    <string name="perm_battery_subtitle">Unrestricted background running</string>
+    <string name="status_granted">Granted ✓</string>
+    <string name="status_enable">Enable</string>
+
+    <!-- Target Platforms -->
+    <string name="section_platforms">Target Platforms</string>
+    <string name="platform_youtube">YouTube Shorts</string>
+    <string name="platform_instagram">Instagram Reels</string>
+    <string name="platform_tiktok">TikTok</string>
+    <string name="platform_facebook">Facebook Reels</string>
+    <string name="status_on">ON</string>
+    <string name="status_off">OFF</string>
+    <string name="status_coming_soon">Coming Soon</string>
+
+    <!-- Fine Tuning -->
+    <string name="section_fine_tuning">Fine-Tuning</string>
+    <string name="tuning_delay_title">Post-Video Delay</string>
+    <string name="tuning_delay_desc">Wait before swiping to the next video</string>
+    <string name="tuning_timeout_title">Safety Timeout Fallback</string>
+    <string name="tuning_timeout_desc">Auto-advance when no progress bar is detected</string>
+</resources>
