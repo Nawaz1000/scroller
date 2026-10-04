@@ -10,58 +10,71 @@ class VideoDetector {
     private var videoStartTime: Long = 0L
     private var lastScrollTime: Long = 0L
     private var lastDetectedTotalMs: Long = 0L
+    private var currentCategory: String = "General"
 
     companion object {
         private const val TAG = "VideoDetector"
         const val PKG_YOUTUBE = "com.google.android.youtube"
         const val PKG_INSTAGRAM = "com.instagram.android"
         const val PKG_FACEBOOK = "com.facebook.katana"
-        private const val SCROLL_COOLDOWN_MS = 1800L
-        private const val FINISH_THRESHOLD = 0.97f
-        private const val LOOP_HIGH_THRESHOLD = 0.80f
-        private const val LOOP_LOW_THRESHOLD = 0.12f
+        private const val SCROLL_COOLDOWN_MS = 2500L
+        private const val FINISH_THRESHOLD = 0.98f
+        private const val LOOP_HIGH_THRESHOLD = 0.85f
+        private const val LOOP_LOW_THRESHOLD = 0.10f
 
-        // Regex for YouTube Shorts contentDescription (e.g. "0 minutes 5 seconds of 0 minutes 33 seconds")
+        // Regex for YouTube Shorts contentDescription
         private val YOUTUBE_WORDS_REGEX = Regex(
             """(?:(\d+)\s*min(?:ute)?s?\s*)?(\d+)\s*sec(?:ond)?s?\s*of\s*(?:(\d+)\s*min(?:ute)?s?\s*)?(\d+)\s*sec(?:ond)?s?""",
             RegexOption.IGNORE_CASE
         )
-        // Regex for digital format (e.g. "0:05 of 0:33" or "0:05 / 0:33")
         private val DIGITAL_REGEX = Regex(
             """(\d+):(\d+)\s*(?:of|/)\s*(\d+):(\d+)""",
             RegexOption.IGNORE_CASE
         )
+        
+        // Hashtag extraction
+        private val HASHTAG_REGEX = Regex("""#(\w+)""")
     }
 
     fun onNewVideoStarted() {
         lastProgressFraction = 0f
         videoStartTime = SystemClock.uptimeMillis()
         lastDetectedTotalMs = 0L
+        currentCategory = "General"
         Log.d(TAG, "New video detected or scroll reset.")
     }
 
-    fun markScrolled() {
+    fun markScrolled(): String {
         lastScrollTime = SystemClock.uptimeMillis()
+        val cat = currentCategory
         onNewVideoStarted()
+        return cat
     }
 
     fun isInCooldown(): Boolean {
         return (SystemClock.uptimeMillis() - lastScrollTime) < SCROLL_COOLDOWN_MS
     }
 
-    /**
-     * Checks if video has finished or extracts video timing information.
-     * Returns true if video should scroll immediately, or returns remaining duration if known.
-     */
     fun evaluateVideoState(
         rootNode: AccessibilityNodeInfo?,
         packageName: String,
-        fallbackTimeoutSec: Int
+        fallbackTimeoutSec: Int,
+        blockedCategories: Set<String>
     ): VideoStateResult {
         if (isInCooldown()) return VideoStateResult.None
         if (rootNode == null) return VideoStateResult.None
 
         val now = SystemClock.uptimeMillis()
+
+        // 0. Extract Context and Categories
+        val onScreenText = extractOnScreenText(rootNode)
+        currentCategory = categorizeText(onScreenText)
+
+        // Check if category is blocked
+        if (blockedCategories.isNotEmpty() && blockedCategories.contains(currentCategory)) {
+            Log.i(TAG, "Blocked category detected: $currentCategory. Triggering skip.")
+            return VideoStateResult.ShouldSkip
+        }
 
         // 1. Check YouTube Shorts exact seek bar time
         if (packageName == PKG_YOUTUBE) {
@@ -73,18 +86,16 @@ class VideoDetector {
 
                 Log.d(TAG, "YouTube Shorts timing: ${currentMs / 1000}s of ${totalMs / 1000}s (remaining: ${remainingMs / 1000}s)")
 
-                // Video completed condition
-                if (totalMs > 0 && currentMs >= (totalMs - 1200L)) {
+                if (totalMs > 0 && currentMs >= (totalMs - 800L)) {
                     Log.i(TAG, "YouTube Short reached end (${currentMs}ms / ${totalMs}ms). Triggering scroll.")
                     return VideoStateResult.ShouldScrollNow
                 }
 
-                // If starting or playing, report remaining time
                 return VideoStateResult.HasRemainingTime(remainingMs, totalMs)
             }
         }
 
-        // 2. Check general ProgressBar / RangeInfo (works for Instagram & YouTube)
+        // 2. Check general ProgressBar / RangeInfo
         val progress = findProgressBarFraction(rootNode, packageName)
         if (progress != null) {
             val prev = lastProgressFraction
@@ -93,18 +104,17 @@ class VideoDetector {
             Log.d(TAG, "[$packageName] Progress: ${(progress * 100).toInt()}% (prev: ${(prev * 100).toInt()}%)")
 
             if (progress >= FINISH_THRESHOLD) {
-                Log.i(TAG, "Video progress >= 97% ($progress). Triggering scroll.")
+                Log.i(TAG, "Video progress >= 98% ($progress). Triggering scroll.")
                 return VideoStateResult.ShouldScrollNow
             }
 
-            // Loop detection: was near end and looped back to start
             if (prev >= LOOP_HIGH_THRESHOLD && progress <= LOOP_LOW_THRESHOLD) {
                 Log.i(TAG, "Video loop detected ($prev -> $progress). Triggering scroll.")
                 return VideoStateResult.ShouldScrollNow
             }
         }
 
-        // 3. Check fallback timeout
+        // 3. Fallback timeout
         if (videoStartTime > 0 && (now - videoStartTime) >= (fallbackTimeoutSec * 1000L)) {
             Log.i(TAG, "Video exceeded fallback timeout ($fallbackTimeoutSec s). Triggering scroll.")
             return VideoStateResult.ShouldScrollNow
@@ -113,9 +123,47 @@ class VideoDetector {
         return VideoStateResult.None
     }
 
-    /**
-     * Traverses the node tree looking for YouTube's seek bar with time description.
-     */
+    private fun extractOnScreenText(node: AccessibilityNodeInfo?): String {
+        if (node == null) return ""
+        val sb = java.lang.StringBuilder()
+        
+        node.text?.let { sb.append(it).append(" ") }
+        node.contentDescription?.let { sb.append(it).append(" ") }
+
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i)
+            sb.append(extractOnScreenText(child))
+            child?.recycle()
+        }
+        return sb.toString()
+    }
+
+    private fun categorizeText(text: String): String {
+        val lowerText = text.lowercase()
+        val tags = HASHTAG_REGEX.findAll(lowerText).map { it.groupValues[1] }.toList()
+        
+        val gamingKeywords = setOf("gaming", "gta", "minecraft", "roblox", "fortnite", "valorant", "gameplay")
+        val techKeywords = setOf("tech", "programming", "coding", "developer", "ai", "software")
+        val comedyKeywords = setOf("funny", "meme", "comedy", "joke", "prank", "humor")
+        val sportsKeywords = setOf("sports", "football", "soccer", "basketball", "nba", "nfl", "cricket")
+
+        for (tag in tags) {
+            if (tag in gamingKeywords) return "Gaming"
+            if (tag in techKeywords) return "Tech"
+            if (tag in comedyKeywords) return "Comedy"
+            if (tag in sportsKeywords) return "Sports"
+        }
+        
+        for (word in lowerText.split(Regex("\\s+"))) {
+            if (word in gamingKeywords) return "Gaming"
+            if (word in techKeywords) return "Tech"
+            if (word in comedyKeywords) return "Comedy"
+            if (word in sportsKeywords) return "Sports"
+        }
+
+        return "General"
+    }
+
     private fun findYouTubeTiming(node: AccessibilityNodeInfo?): Pair<Long, Long>? {
         if (node == null) return null
 
@@ -141,7 +189,6 @@ class VideoDetector {
     }
 
     private fun parseTimeDescription(desc: String): Pair<Long, Long>? {
-        // Match word format: "0 minutes 5 seconds of 0 minutes 33 seconds"
         YOUTUBE_WORDS_REGEX.find(desc)?.let { match ->
             val curMin = match.groups[1]?.value?.toLongOrNull() ?: 0L
             val curSec = match.groups[2]?.value?.toLongOrNull() ?: 0L
@@ -155,7 +202,6 @@ class VideoDetector {
             }
         }
 
-        // Match digital format: "0:05 of 0:33"
         DIGITAL_REGEX.find(desc)?.let { match ->
             val curMin = match.groups[1]?.value?.toLongOrNull() ?: 0L
             val curSec = match.groups[2]?.value?.toLongOrNull() ?: 0L
@@ -210,6 +256,7 @@ class VideoDetector {
     sealed class VideoStateResult {
         object None : VideoStateResult()
         object ShouldScrollNow : VideoStateResult()
+        object ShouldSkip : VideoStateResult()
         data class HasRemainingTime(val remainingMs: Long, val totalMs: Long) : VideoStateResult()
     }
 }

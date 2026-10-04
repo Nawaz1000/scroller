@@ -162,6 +162,17 @@ class MainActivity : AppCompatActivity() {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             Toast.makeText(this, "ReelFlow v1.0.0 — Premium Edition", Toast.LENGTH_SHORT).show()
         }
+
+        // Anti-Brainrot Buttons
+        binding.btnShareRank.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            shareRank()
+        }
+
+        binding.btnFilters.setOnClickListener {
+            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            showContentFiltersDialog()
+        }
     }
 
     private fun openOverlaySettings() {
@@ -228,6 +239,51 @@ class MainActivity : AppCompatActivity() {
         val scrolled = prefs.videosScrolledToday
         val timeSaved = prefs.timeSavedMinutes
         binding.badgeSessionStats.text = "Videos Scrolled: $scrolled | Time Saved: ${timeSaved}m"
+        
+        // Anti-Brainrot Update
+        binding.txtRankTitle.text = prefs.getBrainrotRank()
+        binding.txtRankDesc.text = prefs.getBrainrotRankDesc()
+        binding.txtDailyScrolled.text = "$scrolled"
+        binding.txtLifetimeScrolled.text = "${prefs.lifetimeScrolled}"
+    }
+
+    private fun showContentFiltersDialog() {
+        val categories = arrayOf("Gaming", "Tech", "Comedy", "Sports")
+        val blocked = prefs.blockedCategories.toMutableSet()
+        val checkedItems = BooleanArray(categories.size) { i ->
+            blocked.contains(categories[i])
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(this, R.style.Theme_AutoScroller)
+            .setTitle("Block Content Categories (Auto-Skip)")
+            .setMultiChoiceItems(categories, checkedItems) { _, which, isChecked ->
+                if (isChecked) {
+                    blocked.add(categories[which])
+                } else {
+                    blocked.remove(categories[which])
+                }
+            }
+            .setPositiveButton("Save") { _, _ ->
+                prefs.blockedCategories = blocked
+                Toast.makeText(this, "Filters saved. Selected categories will be auto-skipped.", Toast.LENGTH_LONG).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun shareRank() {
+        val rank = prefs.getBrainrotRank()
+        val daily = prefs.videosScrolledToday
+        val lifetime = prefs.lifetimeScrolled
+        val shareText = "I'm officially '$rank' on ReelFlow! 💀\nToday: $daily shorts scrolled.\nLifetime: $lifetime doom scrolls.\n\nCan you beat my Anti-Brainrot Challenge? 🗿✨ #ReelFlow #DoomScrolling"
+        
+        val sendIntent: Intent = Intent().apply {
+            action = Intent.ACTION_SEND
+            putExtra(Intent.EXTRA_TEXT, shareText)
+            type = "text/plain"
+        }
+        val shareIntent = Intent.createChooser(sendIntent, "Share your Brainrot Rank")
+        startActivity(shareIntent)
     }
 
     private fun updatePlatformBadge(badge: android.widget.TextView, isEnabled: Boolean) {

@@ -26,7 +26,6 @@ class AutoScrollAccessibilityService : AccessibilityService() {
     private var scheduledSwipeRunnable: Runnable? = null
     private var scheduledForVideoTotalMs: Long = 0L
 
-    // Receiver to trigger swipe from ADB or other components
     private val swipeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             Log.i(TAG, "Received broadcast to swipe up!")
@@ -34,13 +33,13 @@ class AutoScrollAccessibilityService : AccessibilityService() {
         }
     }
 
-    // Polling loop to inspect window state every 600ms even if no events fire during video playback
+    // Polling loop to inspect window state every 300ms for high accuracy
     private val pollRunnable = object : Runnable {
         override fun run() {
             if (prefs.isAutoScrollEnabled && !isScrollPending && !detector.isInCooldown()) {
                 inspectActiveWindow()
             }
-            handler.postDelayed(this, 600L)
+            handler.postDelayed(this, 300L)
         }
     }
 
@@ -74,7 +73,6 @@ class AutoScrollAccessibilityService : AccessibilityService() {
 
         val packageName = event.packageName?.toString() ?: return
 
-        // Handle page/scroll changes to reset detector
         if (event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
             cancelScheduledSwipe()
             detector.onNewVideoStarted()
@@ -103,13 +101,18 @@ class AutoScrollAccessibilityService : AccessibilityService() {
         val result = detector.evaluateVideoState(
             rootNode = rootNode,
             packageName = packageName,
-            fallbackTimeoutSec = prefs.fallbackTimeoutSec
+            fallbackTimeoutSec = prefs.fallbackTimeoutSec,
+            blockedCategories = prefs.blockedCategories
         )
 
         when (result) {
             is VideoDetector.VideoStateResult.ShouldScrollNow -> {
                 cancelScheduledSwipe()
-                triggerAutoScroll()
+                triggerAutoScroll(isSkip = false)
+            }
+            is VideoDetector.VideoStateResult.ShouldSkip -> {
+                cancelScheduledSwipe()
+                triggerAutoScroll(isSkip = true)
             }
             is VideoDetector.VideoStateResult.HasRemainingTime -> {
                 if (scheduledForVideoTotalMs != result.totalMs && result.totalMs > 0) {
@@ -126,13 +129,13 @@ class AutoScrollAccessibilityService : AccessibilityService() {
         cancelScheduledSwipe()
         scheduledForVideoTotalMs = totalMs
 
-        val targetDelay = (remainingMs + prefs.scrollDelayMs).coerceAtLeast(400L)
+        val targetDelay = (remainingMs + prefs.scrollDelayMs).coerceAtLeast(100L)
         Log.i(TAG, "Scheduling auto-swipe in ${targetDelay}ms (Video duration: ${totalMs / 1000}s)")
 
         scheduledSwipeRunnable = Runnable {
             if (!isScrollPending && !detector.isInCooldown()) {
                 Log.i(TAG, "Scheduled auto-swipe timer fired!")
-                performSwipeUp()
+                performSwipeUp(isSkip = false)
             }
         }
         handler.postDelayed(scheduledSwipeRunnable!!, targetDelay)
@@ -146,35 +149,33 @@ class AutoScrollAccessibilityService : AccessibilityService() {
         scheduledForVideoTotalMs = 0L
     }
 
-    private fun triggerAutoScroll() {
+    private fun triggerAutoScroll(isSkip: Boolean) {
         if (isScrollPending || detector.isInCooldown()) return
 
         isScrollPending = true
         _isScrollingNow.value = true
 
-        val delay = prefs.scrollDelayMs
-        Log.d(TAG, "Video finished! Triggering swipe in ${delay}ms...")
+        // If it's a skip, don't wait for delay. Just skip immediately.
+        val delay = if (isSkip) 100L else prefs.scrollDelayMs
+        Log.d(TAG, "Triggering swipe in ${delay}ms... (Skip: $isSkip)")
 
         handler.postDelayed({
-            performSwipeUp()
+            performSwipeUp(isSkip = isSkip)
             isScrollPending = false
             _isScrollingNow.value = false
         }, delay)
     }
 
-    /**
-     * Executes programmatic swipe up gesture on the screen.
-     */
-    fun performSwipeUp(durationMs: Long = 220L): Boolean {
+    fun performSwipeUp(durationMs: Long = 250L, isSkip: Boolean = false): Boolean {
         cancelScheduledSwipe()
         val metrics = resources.displayMetrics
         val width = metrics.widthPixels
         val height = metrics.heightPixels
 
-        // Center-x, snappy flick from 74% down to 24% up
+        // Perfectly centered accurate swipe from 80% to 20%
         val startX = width / 2f
-        val startY = height * 0.74f
-        val endY = height * 0.24f
+        val startY = height * 0.8f
+        val endY = height * 0.2f
 
         val swipePath = Path().apply {
             moveTo(startX, startY)
@@ -184,21 +185,23 @@ class AutoScrollAccessibilityService : AccessibilityService() {
         val stroke = GestureDescription.StrokeDescription(swipePath, 0L, durationMs)
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
 
-        detector.markScrolled()
-        Log.i(TAG, "Dispatching swipe up gesture from ($startX, $startY) to ($startX, $endY)")
+        val category = detector.markScrolled()
+        Log.i(TAG, "Dispatching swipe up. Category: $category. Skip: $isSkip")
 
         _isScrollingNow.value = true
         val dispatched = dispatchGesture(gesture, object : GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) {
                 super.onCompleted(gestureDescription)
-                Log.d(TAG, "Swipe gesture completed successfully.")
-                prefs.recordAutoScroll()
+                Log.d(TAG, "Swipe completed.")
+                if (!isSkip) {
+                    prefs.recordAutoScroll(category)
+                }
                 _isScrollingNow.value = false
             }
 
             override fun onCancelled(gestureDescription: GestureDescription?) {
                 super.onCancelled(gestureDescription)
-                Log.w(TAG, "Swipe gesture was cancelled.")
+                Log.w(TAG, "Swipe cancelled.")
                 _isScrollingNow.value = false
             }
         }, null)
@@ -207,7 +210,7 @@ class AutoScrollAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() {
-        Log.w(TAG, "AutoScrollAccessibilityService interrupted.")
+        Log.w(TAG, "Service interrupted.")
         cancelScheduledSwipe()
     }
 
@@ -217,12 +220,7 @@ class AutoScrollAccessibilityService : AccessibilityService() {
         _isServiceRunning.value = false
         cancelScheduledSwipe()
         handler.removeCallbacksAndMessages(null)
-        try {
-            unregisterReceiver(swipeReceiver)
-        } catch (e: Exception) {
-            // Already unregistered
-        }
-        Log.i(TAG, "AutoScrollAccessibilityService destroyed.")
+        try { unregisterReceiver(swipeReceiver) } catch (e: Exception) {}
     }
 
     companion object {
