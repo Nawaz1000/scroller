@@ -46,6 +46,27 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         updatePermissionStates()
         updateSessionStats()
+        checkAndShowPermissionsPopup()
+    }
+
+    private fun checkAndShowPermissionsPopup() {
+        val isA11yEnabled = isAccessibilityServiceEnabled()
+        val isOverlayEnabled = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
+        
+        if (!isA11yEnabled || !isOverlayEnabled) {
+            androidx.appcompat.app.AlertDialog.Builder(this, R.style.Theme_AutoScroller)
+                .setTitle("Permissions Required")
+                .setMessage("ReelFlow requires Accessibility and Overlay permissions to automatically scroll videos.")
+                .setCancelable(false)
+                .setPositiveButton("Grant Accessibility") { _, _ ->
+                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    Toast.makeText(this, "Find 'ReelFlow Engine' and turn it ON", Toast.LENGTH_LONG).show()
+                }
+                .setNegativeButton("Grant Overlay") { _, _ ->
+                    openOverlaySettings()
+                }
+                .show()
+        }
     }
 
     private fun initViews() {
@@ -76,39 +97,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Permissions Cards
-        binding.cardPermAccessibility.setOnClickListener {
+        // Open Stats Activity
+        binding.btnOpenStats.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            startActivity(intent)
-            Toast.makeText(this, "Find 'ReelFlow Engine' and turn it ON", Toast.LENGTH_LONG).show()
-        }
-
-        binding.switchPermOverlay.isChecked = Settings.canDrawOverlays(this)
-        binding.switchPermOverlay.setOnClickListener {
-            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-            openOverlaySettings()
-        }
-        binding.cardPermOverlay.setOnClickListener {
-            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-            openOverlaySettings()
-        }
-
-        binding.cardPermBattery.setOnClickListener {
-            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                try {
-                    @SuppressLint("BatteryLife")
-                    val intent = Intent(
-                        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                        Uri.parse("package:$packageName")
-                    )
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                    startActivity(intent)
-                }
-            }
+            startActivity(Intent(this, StatsActivity::class.java))
         }
 
         // Target Platforms
@@ -161,17 +153,6 @@ class MainActivity : AppCompatActivity() {
         binding.btnSettings.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
             Toast.makeText(this, "ReelFlow v1.0.0 — Premium Edition", Toast.LENGTH_SHORT).show()
-        }
-
-        // Anti-Brainrot Buttons
-        binding.btnShareRank.setOnClickListener {
-            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-            shareRank()
-        }
-
-        binding.btnFilters.setOnClickListener {
-            it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-            showContentFiltersDialog()
         }
     }
 
@@ -239,52 +220,9 @@ class MainActivity : AppCompatActivity() {
         val scrolled = prefs.videosScrolledToday
         val timeSaved = prefs.timeSavedMinutes
         binding.badgeSessionStats.text = "Videos Scrolled: $scrolled | Time Saved: ${timeSaved}m"
-        
-        // Anti-Brainrot Update
-        binding.txtRankTitle.text = prefs.getBrainrotRank()
-        binding.txtRankDesc.text = prefs.getBrainrotRankDesc()
-        binding.txtDailyScrolled.text = "$scrolled"
-        binding.txtLifetimeScrolled.text = "${prefs.lifetimeScrolled}"
     }
 
-    private fun showContentFiltersDialog() {
-        val categories = arrayOf("Gaming", "Tech", "Comedy", "Sports")
-        val blocked = prefs.blockedCategories.toMutableSet()
-        val checkedItems = BooleanArray(categories.size) { i ->
-            blocked.contains(categories[i])
-        }
-
-        androidx.appcompat.app.AlertDialog.Builder(this, R.style.Theme_AutoScroller)
-            .setTitle("Block Content Categories (Auto-Skip)")
-            .setMultiChoiceItems(categories, checkedItems) { _, which, isChecked ->
-                if (isChecked) {
-                    blocked.add(categories[which])
-                } else {
-                    blocked.remove(categories[which])
-                }
-            }
-            .setPositiveButton("Save") { _, _ ->
-                prefs.blockedCategories = blocked
-                Toast.makeText(this, "Filters saved. Selected categories will be auto-skipped.", Toast.LENGTH_LONG).show()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun shareRank() {
-        val rank = prefs.getBrainrotRank()
-        val daily = prefs.videosScrolledToday
-        val lifetime = prefs.lifetimeScrolled
-        val shareText = "I'm officially '$rank' on ReelFlow! 💀\nToday: $daily shorts scrolled.\nLifetime: $lifetime doom scrolls.\n\nCan you beat my Anti-Brainrot Challenge? 🗿✨ #ReelFlow #DoomScrolling"
-        
-        val sendIntent: Intent = Intent().apply {
-            action = Intent.ACTION_SEND
-            putExtra(Intent.EXTRA_TEXT, shareText)
-            type = "text/plain"
-        }
-        val shareIntent = Intent.createChooser(sendIntent, "Share your Brainrot Rank")
-        startActivity(shareIntent)
-    }
+    // Moved to StatsActivity
 
     private fun updatePlatformBadge(badge: android.widget.TextView, isEnabled: Boolean) {
         badge.text = if (isEnabled) getString(R.string.status_on) else getString(R.string.status_off)

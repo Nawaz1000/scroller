@@ -36,11 +36,14 @@ class VideoDetector {
         private val HASHTAG_REGEX = Regex("""#(\w+)""")
     }
 
+    private var categoryScanned = false
+
     fun onNewVideoStarted() {
         lastProgressFraction = 0f
         videoStartTime = SystemClock.uptimeMillis()
         lastDetectedTotalMs = 0L
         currentCategory = "General"
+        categoryScanned = false
         Log.d(TAG, "New video detected or scroll reset.")
     }
 
@@ -66,14 +69,19 @@ class VideoDetector {
 
         val now = SystemClock.uptimeMillis()
 
-        // 0. Extract Context and Categories
-        val onScreenText = extractOnScreenText(rootNode)
-        currentCategory = categorizeText(onScreenText)
-
-        // Check if category is blocked
-        if (blockedCategories.isNotEmpty() && blockedCategories.contains(currentCategory)) {
-            Log.i(TAG, "Blocked category detected: $currentCategory. Triggering skip.")
-            return VideoStateResult.ShouldSkip
+        // 0. Extract Context and Categories (ONLY ONCE PER VIDEO for BATTERY SAVINGS)
+        if (!categoryScanned) {
+            val onScreenText = extractOnScreenText(rootNode)
+            if (onScreenText.isNotBlank()) {
+                currentCategory = categorizeText(onScreenText)
+                categoryScanned = true
+                Log.d(TAG, "Category scanned once: $currentCategory")
+                
+                if (blockedCategories.isNotEmpty() && blockedCategories.contains(currentCategory)) {
+                    Log.i(TAG, "Blocked category detected: $currentCategory. Triggering skip.")
+                    return VideoStateResult.ShouldSkip
+                }
+            }
         }
 
         // 1. Check YouTube Shorts exact seek bar time
@@ -86,7 +94,9 @@ class VideoDetector {
 
                 Log.d(TAG, "YouTube Shorts timing: ${currentMs / 1000}s of ${totalMs / 1000}s (remaining: ${remainingMs / 1000}s)")
 
-                if (totalMs > 0 && currentMs >= (totalMs - 800L)) {
+                // If user seeks manually to the end, remainingMs becomes very small. 
+                // We expand the threshold slightly to catch manual seeks to the very end.
+                if (totalMs > 0 && (currentMs >= (totalMs - 1000L) || remainingMs < 1000L)) {
                     Log.i(TAG, "YouTube Short reached end (${currentMs}ms / ${totalMs}ms). Triggering scroll.")
                     return VideoStateResult.ShouldScrollNow
                 }
@@ -108,7 +118,9 @@ class VideoDetector {
                 return VideoStateResult.ShouldScrollNow
             }
 
+            // Loop detection: was near end and looped back to start (Catch natural loop, ignore manual scrub back)
             if (prev >= LOOP_HIGH_THRESHOLD && progress <= LOOP_LOW_THRESHOLD) {
+                // If the jump is too sudden, it might be a user scrub. But for looping, this is exactly what happens.
                 Log.i(TAG, "Video loop detected ($prev -> $progress). Triggering scroll.")
                 return VideoStateResult.ShouldScrollNow
             }

@@ -33,13 +33,18 @@ class AutoScrollAccessibilityService : AccessibilityService() {
         }
     }
 
-    // Polling loop to inspect window state every 300ms for high accuracy
+    private var currentPollDelay = 2000L
+
+    // Dynamic Polling loop: 2000ms idle, 300ms when inside a target app
     private val pollRunnable = object : Runnable {
         override fun run() {
             if (prefs.isAutoScrollEnabled && !isScrollPending && !detector.isInCooldown()) {
-                inspectActiveWindow()
+                val isActive = inspectActiveWindow()
+                currentPollDelay = if (isActive) 300L else 2000L
+            } else {
+                currentPollDelay = 2000L
             }
-            handler.postDelayed(this, 300L)
+            handler.postDelayed(this, currentPollDelay)
         }
     }
 
@@ -84,11 +89,11 @@ class AutoScrollAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun inspectActiveWindow() {
-        if (isScrollPending || detector.isInCooldown()) return
+    private fun inspectActiveWindow(): Boolean {
+        if (isScrollPending || detector.isInCooldown()) return false
 
-        val rootNode = rootInActiveWindow ?: return
-        val packageName = rootNode.packageName?.toString() ?: return
+        val rootNode = rootInActiveWindow ?: return false
+        val packageName = rootNode.packageName?.toString() ?: return false
 
         val isTarget = when (packageName) {
             VideoDetector.PKG_YOUTUBE -> prefs.isYouTubeEnabled
@@ -96,7 +101,7 @@ class AutoScrollAccessibilityService : AccessibilityService() {
             VideoDetector.PKG_FACEBOOK -> prefs.isFacebookEnabled
             else -> false
         }
-        if (!isTarget) return
+        if (!isTarget) return false
 
         val result = detector.evaluateVideoState(
             rootNode = rootNode,
@@ -123,6 +128,7 @@ class AutoScrollAccessibilityService : AccessibilityService() {
                 // Keep monitoring
             }
         }
+        return true
     }
 
     private fun scheduleSwipeAt(remainingMs: Long, totalMs: Long) {

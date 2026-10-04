@@ -45,6 +45,10 @@ class PreferencesManager(context: Context) {
         return SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
     }
 
+    private fun getCurrentMonthStr(): String {
+        return SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
+    }
+
     private fun checkAndResetDailyStats() {
         val today = getCurrentDateStr()
         val savedDate = prefs.getString(KEY_LAST_ACTIVE_DATE, "")
@@ -52,6 +56,15 @@ class PreferencesManager(context: Context) {
             prefs.edit()
                 .putString(KEY_LAST_ACTIVE_DATE, today)
                 .putInt(KEY_VIDEOS_SCROLLED_TODAY, 0)
+                .apply()
+        }
+
+        val thisMonth = getCurrentMonthStr()
+        val savedMonth = prefs.getString(KEY_LAST_ACTIVE_MONTH, "")
+        if (thisMonth != savedMonth) {
+            prefs.edit()
+                .putString(KEY_LAST_ACTIVE_MONTH, thisMonth)
+                .putInt(KEY_VIDEOS_SCROLLED_MONTH, 0)
                 .apply()
         }
     }
@@ -62,6 +75,13 @@ class PreferencesManager(context: Context) {
             return prefs.getInt(KEY_VIDEOS_SCROLLED_TODAY, 0)
         }
         private set(value) = prefs.edit().putInt(KEY_VIDEOS_SCROLLED_TODAY, value).apply()
+
+    var videosScrolledMonth: Int
+        get() {
+            checkAndResetDailyStats()
+            return prefs.getInt(KEY_VIDEOS_SCROLLED_MONTH, 0)
+        }
+        private set(value) = prefs.edit().putInt(KEY_VIDEOS_SCROLLED_MONTH, value).apply()
 
     var lifetimeScrolled: Int
         get() = prefs.getInt(KEY_LIFETIME_SCROLLED, 0)
@@ -91,6 +111,7 @@ class PreferencesManager(context: Context) {
     fun recordAutoScroll(category: String = "General") {
         checkAndResetDailyStats()
         videosScrolledToday = videosScrolledToday + 1
+        videosScrolledMonth = videosScrolledMonth + 1
         lifetimeScrolled = lifetimeScrolled + 1
 
         val currentStats = categoryStats.toMutableMap()
@@ -134,7 +155,9 @@ class PreferencesManager(context: Context) {
         private const val KEY_FLOATING_WIDGET_ENABLED = "floating_widget_enabled"
         
         private const val KEY_LAST_ACTIVE_DATE = "last_active_date"
+        private const val KEY_LAST_ACTIVE_MONTH = "last_active_month"
         private const val KEY_VIDEOS_SCROLLED_TODAY = "videos_scrolled_today"
+        private const val KEY_VIDEOS_SCROLLED_MONTH = "videos_scrolled_month"
         private const val KEY_LIFETIME_SCROLLED = "lifetime_scrolled"
         private const val KEY_CATEGORY_STATS = "category_stats"
         private const val KEY_BLOCKED_CATEGORIES = "blocked_categories"
