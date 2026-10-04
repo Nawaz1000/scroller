@@ -181,18 +181,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun updatePermissionStates() {
         val isA11yEnabled = isAccessibilityServiceEnabled()
-        binding.badgePermAccessibility.text = if (isA11yEnabled) getString(R.string.status_granted) else getString(R.string.status_enable)
-        val a11yColor = if (isA11yEnabled) Color.parseColor("#00F59B") else Color.parseColor("#FF4D4D")
-        binding.badgePermAccessibility.setTextColor(a11yColor)
-
-        val isOverlayEnabled = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
-        binding.switchPermOverlay.isChecked = isOverlayEnabled
-
-        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        val isBatteryIgnored = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
-                powerManager.isIgnoringBatteryOptimizations(packageName)
-        binding.badgePermBattery.text = if (isBatteryIgnored) getString(R.string.status_granted) else getString(R.string.status_enable)
-
         updateEngineUI(prefs.isAutoScrollEnabled, isA11yEnabled)
     }
 
