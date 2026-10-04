@@ -28,21 +28,37 @@ class StatsActivity : AppCompatActivity() {
             shareRank()
         }
 
+        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        if (auth.currentUser != null) {
+            binding.btnLogin.text = "Logged in as ${auth.currentUser?.email?.substringBefore("@")}"
+            binding.btnLogin.isEnabled = false
+        }
+
         binding.btnLogin.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-            // Mock Login Navigation
-            startActivity(Intent(this, LoginActivity::class.java))
+            if (auth.currentUser == null) {
+                startActivity(Intent(this, LoginActivity::class.java))
+            }
         }
 
         binding.btnLeaderboard.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-            // Navigate to Leaderboard Activity
-            startActivity(Intent(this, LeaderboardActivity::class.java))
+            if (auth.currentUser == null) {
+                Toast.makeText(this, "Please login first to view the Leaderboard", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, LoginActivity::class.java))
+            } else {
+                startActivity(Intent(this, LeaderboardActivity::class.java))
+            }
         }
     }
 
     override fun onResume() {
         super.onResume()
+        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        if (auth.currentUser != null) {
+            binding.btnLogin.text = "Logged in as ${auth.currentUser?.email?.substringBefore("@")}"
+            binding.btnLogin.isEnabled = false
+        }
         updateStats()
     }
 
@@ -57,6 +73,33 @@ class StatsActivity : AppCompatActivity() {
         binding.txtDailyScrolled.text = "$daily"
         binding.txtMonthScrolled.text = "$month"
         binding.txtLifetimeScrolled.text = "$lifetime"
+
+        syncToFirestore(daily, month, lifetime)
+    }
+
+    private fun syncToFirestore(daily: Int, month: Int, lifetime: Int) {
+        val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+        if (user != null) {
+            val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val userEmail = user.email ?: "Unknown"
+            // We use the email prefix as a display name
+            val displayName = userEmail.substringBefore("@")
+            
+            val data = hashMapOf(
+                "email" to userEmail,
+                "displayName" to displayName,
+                "dailyScrolled" to daily,
+                "monthScrolled" to month,
+                "lifetimeScrolled" to lifetime,
+                "lastUpdated" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+            )
+
+            db.collection("leaderboard").document(user.uid)
+                .set(data)
+                .addOnSuccessListener {
+                    // Synced successfully
+                }
+        }
     }
 
     private fun shareRank() {

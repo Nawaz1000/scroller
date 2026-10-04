@@ -21,7 +21,7 @@ class LeaderboardActivity : AppCompatActivity() {
 
         prefs = PreferencesManager.getInstance(this)
 
-        populateLeaderboardMock()
+        loadLeaderboard()
 
         binding.btnStartChallenge.setOnClickListener {
             Toast.makeText(this, "Anti-Brainrot Challenge Started! Stay under 50 videos today.", Toast.LENGTH_LONG).show()
@@ -29,51 +29,65 @@ class LeaderboardActivity : AppCompatActivity() {
         }
     }
 
-    private fun populateLeaderboardMock() {
-        val mockData = listOf(
-            Triple(1, "SigmaScroller99", 5),
-            Triple(2, "AuraMaster", 8),
-            Triple(3, "GrassToucher", 12),
-            Triple(4, "GuestUser (You)", prefs.videosScrolledToday),
-            Triple(5, "DoomScrollKing", 450)
-        )
-
-        for (row in mockData.sortedBy { it.third }) {
-            val view = LinearLayout(this)
-            view.orientation = LinearLayout.HORIZONTAL
-            view.setPadding(0, 16, 0, 16)
-            
-            val rankText = TextView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                text = "#${row.first}"
-                setTextColor(Color.parseColor("#8E99A8"))
-                textSize = 16f
+    private fun loadLeaderboard() {
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        
+        // Query the top 50 users sorted by least videos scrolled today
+        db.collection("leaderboard")
+            .orderBy("dailyScrolled", com.google.firebase.firestore.Query.Direction.ASCENDING)
+            .limit(50)
+            .get()
+            .addOnSuccessListener { result ->
+                binding.leaderboardContainer.removeAllViews()
+                
+                var rank = 1
+                for (document in result) {
+                    val displayName = document.getString("displayName") ?: "Unknown"
+                    val score = document.getLong("dailyScrolled")?.toInt() ?: 0
+                    
+                    val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                    val isMe = currentUser != null && document.id == currentUser.uid
+                    
+                    addLeaderboardRow(rank, if (isMe) "$displayName (You)" else displayName, score, isMe)
+                    rank++
+                }
             }
-
-            val userText = TextView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 3f)
-                text = row.second
-                setTextColor(Color.WHITE)
-                textSize = 16f
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Failed to load leaderboard", Toast.LENGTH_SHORT).show()
             }
+    }
 
-            val scoreText = TextView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.5f)
-                text = "${row.third}"
-                gravity = android.view.Gravity.END
-                setTextColor(Color.parseColor("#00F59B")) // Neon green
-                textSize = 16f
-            }
-
-            if (row.second.contains("You")) {
-                userText.setTextColor(Color.parseColor("#00E5FF")) // Neon Cyan
-            }
-
-            view.addView(rankText)
-            view.addView(userText)
-            view.addView(scoreText)
-
-            binding.leaderboardContainer.addView(view)
+    private fun addLeaderboardRow(rank: Int, name: String, score: Int, isMe: Boolean) {
+        val view = LinearLayout(this)
+        view.orientation = LinearLayout.HORIZONTAL
+        view.setPadding(0, 16, 0, 16)
+        
+        val rankText = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            text = "#$rank"
+            setTextColor(Color.parseColor("#8E99A8"))
+            textSize = 16f
         }
+
+        val userText = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 3f)
+            text = name
+            setTextColor(if (isMe) Color.parseColor("#00E5FF") else Color.WHITE)
+            textSize = 16f
+        }
+
+        val scoreText = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.5f)
+            text = "$score"
+            gravity = android.view.Gravity.END
+            setTextColor(Color.parseColor("#00F59B")) // Neon green
+            textSize = 16f
+        }
+
+        view.addView(rankText)
+        view.addView(userText)
+        view.addView(scoreText)
+
+        binding.leaderboardContainer.addView(view)
     }
 }

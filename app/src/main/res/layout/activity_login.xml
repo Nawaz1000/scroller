@@ -61,7 +61,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Firebase Auth Mock - Just click Sign In"
+        android:text="If account doesn't exist, it will be created automatically"
         android:textColor="@color/text_muted"
         android:textSize="12sp"
         android:layout_marginTop="16dp"/>
