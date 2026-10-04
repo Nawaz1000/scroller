@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.autoscroller.app.R
 import com.autoscroller.app.data.PreferencesManager
