@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "123456789012",
+    "project_number": "484721353720",
     "project_id": "scroller-4e020",
-    "storage_bucket": "scroller-4e020.appspot.com"
+    "storage_bucket": "scroller-4e020.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789012:android:abcdef1234567890",
+        "mobilesdk_app_id": "1:484721353720:android:de2bd9c66316b6115e2c0d",
         "android_client_info": {
           "package_name": "com.autoscroller.app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "dummy_api_key_for_build"
+          "current_key": "AIzaSyAoDV9vytto3lVde8wJcIAYRK2zTNJWXmc"
         }
       ],
       "services": {
